@@ -120,7 +120,13 @@ async function disconnect(): Promise<void> {
   ui.intro.classList.remove("hidden");
 }
 
+declare const __BUILD__: string;
+
 function init(): void {
+  // Surfacing the build makes a stale cache obvious instead of looking like a bug.
+  const buildSlot = document.getElementById("build");
+  if (buildSlot) buildSlot.textContent = `build ${__BUILD__}`;
+
   if (!isSupported()) {
     ui.unsupported.classList.remove("hidden");
     ui.intro.classList.add("hidden");
