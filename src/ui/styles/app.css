@@ -452,3 +452,116 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* ── Blueprint view ──────────────────────────────────────────────────── */
+
+.viewswitch {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.viewswitch button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 550;
+  padding: var(--sp-2) var(--sp-4);
+  cursor: pointer;
+  transition: background var(--speed) ease, color var(--speed) ease;
+}
+
+.viewswitch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #05221d;
+}
+
+.viewswitch button:not([aria-pressed="true"]):hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.bp {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+}
+
+.bp__gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.bp__frame {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.bp__frame[data-severity="warn"] { stroke: var(--warn); }
+.bp__frame[data-severity="bad"]  { stroke: var(--bad); }
+
+.bp__axis {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.bp__tick { stroke: var(--border-strong); stroke-width: 1; }
+
+.bp__fill {
+  fill: var(--accent);
+  opacity: 0.35;
+}
+
+.bp__marker {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.bp__crossdot {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.bp__crossarm { stroke: var(--accent); stroke-width: 1.5; }
+
+.bp__label {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bp__readout {
+  fill: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bp__node {
+  fill: var(--bg);
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+  transition: fill var(--speed) ease, stroke var(--speed) ease;
+}
+
+.bp__node[data-seen="true"] { stroke: var(--accent-dim); }
+
+.bp__node[data-pressed="true"] {
+  fill: var(--accent);
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.bp__node[data-severity="warn"] { stroke: var(--warn); }
+.bp__node[data-severity="bad"]  { stroke: var(--bad); }

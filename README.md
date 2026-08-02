@@ -33,6 +33,21 @@ diagnostic instrument, not a configurator.
 | **Centre offset** | Where a self-centring axis actually rests, relative to true centre. |
 | **Report rate** | Live reports per second — a device that stalls or disconnects shows up immediately. |
 
+## Views
+
+**Panels** — the detailed readout: per-axis tracks with explored range, the full
+button grid, hat dials, and health notes.
+
+**Blueprint** — a schematic of the inputs: an XY gate for the first two axes,
+gauges for the rest, and buttons as numbered nodes, all live.
+
+The blueprint is deliberately a schematic of *what the device reports*, not a
+drawing of the device. A HID report descriptor says "128 buttons"; it never says
+which one is the pinky trigger, so a physically accurate picture cannot be
+derived from the protocol. Per-device layouts would have to be authored by hand
+by someone holding the hardware — a good contribution if you'd like to add one
+for yours.
+
 ## Browser support
 
 VKB Scope uses **[WebHID](https://developer.mozilla.org/en-US/docs/Web/API/WebHID_API)**,

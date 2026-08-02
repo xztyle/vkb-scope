@@ -19,6 +19,10 @@
             <div class="brand__tag">read-only controller diagnostics</div>
           </div>
         </div>
+        <div class="viewswitch" id="viewswitch" role="group" aria-label="View">
+          <button id="view-panels" type="button" aria-pressed="true">Panels</button>
+          <button id="view-blueprint" type="button" aria-pressed="false">Blueprint</button>
+        </div>
         <button id="reset" class="btn hidden-when-idle">Reset stats</button>
         <button id="disconnect" class="btn hidden-when-idle">Disconnect</button>
       </header>
@@ -83,6 +87,18 @@
         <section class="card" style="margin-top: var(--sp-4)">
           <h2 class="section-title">Buttons</h2>
           <div id="buttons" class="buttons"></div>
+        </section>
+      </main>
+
+      <!-- Blueprint view: a schematic of what's detected, not a picture of the
+           device — a HID descriptor never says where a button physically is. -->
+      <main id="blueprint-view" class="hidden">
+        <section class="card">
+          <h2 class="section-title">
+            Schematic
+            <span class="section-title__count">derived from the report descriptor</span>
+          </h2>
+          <div id="blueprint"></div>
         </section>
       </main>
 

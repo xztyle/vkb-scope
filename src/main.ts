@@ -18,6 +18,7 @@ import {
 import { AxisPanel } from "./ui/components/axis-panel.js";
 import { ButtonPanel } from "./ui/components/button-panel.js";
 import { HatPanel } from "./ui/components/hat-panel.js";
+import { Blueprint } from "./ui/components/blueprint.js";
 import { StatStrip } from "./ui/components/stat-strip.js";
 import "./ui/styles/app.css";
 
@@ -38,6 +39,9 @@ const ui = {
   deviceName: byId("device-name"),
   deviceMeta: byId("device-meta"),
   error: byId("error"),
+  blueprintView: byId("blueprint-view"),
+  viewPanels: byId<HTMLButtonElement>("view-panels"),
+  viewBlueprint: byId<HTMLButtonElement>("view-blueprint"),
 };
 
 const panels = {
@@ -45,8 +49,11 @@ const panels = {
   axes: new AxisPanel(byId("axes")),
   buttons: new ButtonPanel(byId("buttons")),
   hats: new HatPanel(byId("hats")),
+  blueprint: new Blueprint(byId("blueprint")),
 };
 
+type View = "panels" | "blueprint";
+let view: View = "panels";
 let connection: ConnectedDevice | null = null;
 let session: MonitoringSession | null = null;
 let frame = 0;
@@ -64,9 +71,14 @@ function paint(): void {
   if (session) {
     const report = session.report();
     panels.stats.update(report);
-    panels.axes.update(report.axes);
-    panels.buttons.update(report.buttons);
-    panels.hats.update(report.hats);
+    // Only the visible view is painted; the other would be wasted work at 60Hz.
+    if (view === "panels") {
+      panels.axes.update(report.axes);
+      panels.buttons.update(report.buttons);
+      panels.hats.update(report.hats);
+    } else {
+      panels.blueprint.update(report);
+    }
   }
   frame = requestAnimationFrame(paint);
 }
@@ -93,10 +105,24 @@ function start(device: ConnectedDevice): void {
     .filter(Boolean)
     .join(" · ");
 
+  panels.blueprint.reset();
   ui.intro.classList.add("hidden");
-  ui.dashboard.classList.remove("hidden");
+  applyView();
   clearError();
   if (frame === 0) frame = requestAnimationFrame(paint);
+}
+
+function applyView(): void {
+  const live = session !== null;
+  ui.dashboard.classList.toggle("hidden", !live || view !== "panels");
+  ui.blueprintView.classList.toggle("hidden", !live || view !== "blueprint");
+  ui.viewPanels.setAttribute("aria-pressed", String(view === "panels"));
+  ui.viewBlueprint.setAttribute("aria-pressed", String(view === "blueprint"));
+}
+
+function setView(next: View): void {
+  view = next;
+  applyView();
 }
 
 async function connect(vkbOnly: boolean): Promise<void> {
@@ -117,6 +143,7 @@ async function disconnect(): Promise<void> {
   connection = null;
   session = null;
   ui.dashboard.classList.add("hidden");
+  ui.blueprintView.classList.add("hidden");
   ui.intro.classList.remove("hidden");
 }
 
@@ -132,6 +159,8 @@ function init(): void {
     ui.intro.classList.add("hidden");
     return;
   }
+  ui.viewPanels.addEventListener("click", () => setView("panels"));
+  ui.viewBlueprint.addEventListener("click", () => setView("blueprint"));
   ui.connect.addEventListener("click", () => void connect(true));
   ui.connectAny.addEventListener("click", () => void connect(false));
   ui.disconnect.addEventListener("click", () => void disconnect());
