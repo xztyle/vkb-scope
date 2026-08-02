@@ -9,7 +9,11 @@ interface HatDial {
 export class HatPanel {
   private readonly dials = new Map<string, HatDial>();
 
-  constructor(private readonly host: HTMLElement) {}
+  private readonly host: HTMLElement;
+
+  constructor(host: HTMLElement) {
+    this.host = host;
+  }
 
   update(hats: ReadonlyMap<string, number | null>): void {
     if (hats.size === 0) {

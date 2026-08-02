@@ -15,7 +15,11 @@ interface AxisRow {
 export class AxisPanel {
   private readonly rows = new Map<string, AxisRow>();
 
-  constructor(private readonly host: HTMLElement) {}
+  private readonly host: HTMLElement;
+
+  constructor(host: HTMLElement) {
+    this.host = host;
+  }
 
   update(axes: readonly AxisHealth[]): void {
     if (axes.length === 0) {

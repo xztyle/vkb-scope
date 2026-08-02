@@ -31,7 +31,10 @@ const STATS: readonly Stat[] = [
 export class StatStrip {
   private readonly values = new Map<string, HTMLElement>();
 
-  constructor(private readonly host: HTMLElement) {
+  private readonly host: HTMLElement;
+
+  constructor(host: HTMLElement) {
+    this.host = host;
     for (const stat of STATS) {
       const value = el("div", { className: "stat__value" }, "—");
       this.values.set(stat.key, value);

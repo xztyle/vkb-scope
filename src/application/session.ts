@@ -29,7 +29,10 @@ export class MonitoringSession {
   private total = 0;
   private startedAt = performance.now();
 
-  constructor(readonly info: DeviceInfo) {
+  readonly info: DeviceInfo;
+
+  constructor(info: DeviceInfo) {
+    this.info = info;
     for (const layout of info.layouts) this.registerLayout(layout);
   }
 

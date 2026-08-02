@@ -8,18 +8,27 @@
  */
 
 export const THRESHOLDS = {
+  /** Length of the sliding window drift is judged over. */
+  restWindowMs: 2000,
   /**
-   * How wide the "sitting still" window is. The axis counts as at rest while
-   * every sample stays inside a band this size; the moment it leaves, a new
-   * window starts from the current value.
+   * Net displacement across the window, as a fraction of the window's own
+   * peak-to-peak band, above which it counts as movement rather than noise.
    *
-   * This is deliberately a *band*, not a per-sample delta. Judging rest from
-   * the delta alone means a slow sweep — where each step is tiny — reads as
-   * one long rest period spanning the whole travel, reporting drift of ~100%.
+   * This is the discriminator that matters. Drift is mean-reverting: it
+   * wanders about a fixed point and keeps coming back, so it covers a band
+   * while ending up near where it started. Deliberate movement is directional:
+   * net displacement ≈ the band covered. Crucially this works no matter how
+   * *slowly* the axis is moved, which is what defeated earlier attempts that
+   * tried to identify rest from sample-to-sample deltas or a fixed band width.
    */
-  restWindow: 0.02,
-  /** How long the axis must stay inside that window before we judge its noise. */
-  restAfterMs: 400,
+  restTrendRatio: 0.5,
+  /**
+   * Bands wider than this are movement by definition, not drift. No sensor
+   * that still functions wanders across a tenth of its travel, and this stops
+   * a sweep that happens to return to its starting point from reading as
+   * enormous drift.
+   */
+  maxDriftBand: 0.1,
   /** Noise band while at rest above this is reported as drift. */
   driftBand: 0.006,
   /**
@@ -67,10 +76,10 @@ export interface ButtonHealth {
 /**
  * Tracks one axis over time.
  *
- * "At rest" is decided by watching how much the value moves: once it has been
- * still for restAfterMs we start accumulating the peak-to-peak band, which is
- * what actually reveals a drifting or noisy sensor. Judging noise while the
- * user is moving the axis would just measure the movement.
+ * Drift is separated from deliberate movement by mean reversion, not by speed:
+ * over a sliding window, noise covers a band but returns to where it started,
+ * while movement covers a band and stays where it went. Speed-based tests fail
+ * because a slow enough sweep is indistinguishable from rest sample-to-sample.
  */
 export class AxisMonitor {
   private samples = 0;
@@ -78,18 +87,20 @@ export class AxisMonitor {
   private maxSeen = Number.NEGATIVE_INFINITY;
   private last: number | null = null;
   private prev: number | null = null;
-  private stillSince: number | null = null;
-  private restMin = Number.POSITIVE_INFINITY;
-  private restMax = Number.NEGATIVE_INFINITY;
+  /** Sliding window of recent samples, trimmed to THRESHOLDS.restWindowMs. */
+  private readonly window: { value: number; at: number }[] = [];
   private restBandPeak = 0;
   private restValueSum = 0;
   private restValueCount = 0;
   private spikeCount = 0;
 
-  constructor(
-    readonly axisId: string,
-    readonly label: string,
-  ) {}
+  readonly axisId: string;
+  readonly label: string;
+
+  constructor(axisId: string, label: string) {
+    this.axisId = axisId;
+    this.label = label;
+  }
 
   push(value: number, at: number): void {
     this.samples += 1;
@@ -122,24 +133,32 @@ export class AxisMonitor {
     }
   }
 
+  /**
+   * Judge the last restWindowMs of samples: a band the axis covered while
+   * ending up back where it started is noise; a band it covered while
+   * travelling somewhere is the user moving it.
+   */
   private trackRest(value: number, at: number): void {
-    const min = Math.min(this.restMin, value);
-    const max = Math.max(this.restMax, value);
-
-    if (this.stillSince === null || max - min > THRESHOLDS.restWindow) {
-      // Either first sample, or the axis left the window — it is moving, so
-      // start a fresh window anchored at where it is now.
-      this.stillSince = at;
-      this.restMin = value;
-      this.restMax = value;
+    this.window.push({ value, at });
+    const cutoff = at - THRESHOLDS.restWindowMs;
+    while (this.window.length > 0 && this.window[0]!.at < cutoff) this.window.shift();
+    // Need a full window before judging, or a brief pause mid-sweep reads as rest.
+    if (this.window.length < 2 || at - this.window[0]!.at < THRESHOLDS.restWindowMs * 0.9) {
       return;
     }
 
-    this.restMin = min;
-    this.restMax = max;
-    if (at - this.stillSince < THRESHOLDS.restAfterMs) return;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const sample of this.window) {
+      if (sample.value < min) min = sample.value;
+      if (sample.value > max) max = sample.value;
+    }
 
     const band = max - min;
+    if (band > THRESHOLDS.maxDriftBand) return; // movement, by definition
+    const netMove = Math.abs(value - this.window[0]!.value);
+    if (band > 0 && netMove > band * THRESHOLDS.restTrendRatio) return; // directional
+
     if (band > this.restBandPeak) this.restBandPeak = band;
     this.restValueSum += value;
     this.restValueCount += 1;
@@ -190,9 +209,7 @@ export class AxisMonitor {
     this.maxSeen = Number.NEGATIVE_INFINITY;
     this.last = null;
     this.prev = null;
-    this.stillSince = null;
-    this.restMin = Number.POSITIVE_INFINITY;
-    this.restMax = Number.NEGATIVE_INFINITY;
+    this.window.length = 0;
     this.restBandPeak = 0;
     this.restValueSum = 0;
     this.restValueCount = 0;
@@ -211,10 +228,13 @@ export class ButtonMonitor {
   private chatterCount = 0;
   private lastEdgeAt: number | null = null;
 
-  constructor(
-    readonly buttonId: string,
-    readonly number: number,
-  ) {}
+  readonly buttonId: string;
+  readonly number: number;
+
+  constructor(buttonId: string, number: number) {
+    this.buttonId = buttonId;
+    this.number = number;
+  }
 
   push(pressed: boolean, at: number): void {
     if (pressed === this.pressed) return;

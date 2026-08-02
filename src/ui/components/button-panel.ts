@@ -10,7 +10,11 @@ import { el } from "./dom.js";
 export class ButtonPanel {
   private readonly keys = new Map<string, HTMLElement>();
 
-  constructor(private readonly host: HTMLElement) {}
+  private readonly host: HTMLElement;
+
+  constructor(host: HTMLElement) {
+    this.host = host;
+  }
 
   update(buttons: readonly ButtonHealth[]): void {
     if (buttons.length === 0) {
