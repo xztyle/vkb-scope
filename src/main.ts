@@ -24,6 +24,13 @@ import {
 } from "./infrastructure/layout-store.js";
 import { builtInLayout } from "./layouts/index.js";
 import {
+  clearImage,
+  loadImage,
+  measure,
+  pickImage,
+  saveImage,
+} from "./infrastructure/image-store.js";
+import {
   isSupported,
   reconnectFirstGranted,
   requestDevice,
@@ -61,6 +68,8 @@ const ui = {
   mapImport: byId<HTMLButtonElement>("map-import"),
   mapClear: byId<HTMLButtonElement>("map-clear"),
   mapHint: byId("map-hint"),
+  mapImage: byId<HTMLButtonElement>("map-image"),
+  mapImageClear: byId<HTMLButtonElement>("map-image-clear"),
 };
 
 const panels = {
@@ -133,6 +142,12 @@ function start(device: ConnectedDevice): void {
   // device; otherwise the generic grid.
   layout = loadLayout(key) ?? builtInLayout(key) ?? emptyLayout(key, info.productName);
   panels.blueprint.setLayout(layout);
+  const storedImage = loadImage(key);
+  if (storedImage) {
+    void measure(storedImage)
+      .then((image) => panels.blueprint.setBackdrop(image))
+      .catch(() => undefined);
+  }
   setMapping(false);
   ui.intro.classList.add("hidden");
   applyView();
@@ -146,8 +161,9 @@ function updateMapHint(): void {
     return;
   }
   const armed = panels.blueprint.armedButton();
+  const where = panels.blueprint.hasBackdrop() ? "on the photo" : "on the diagram";
   ui.mapHint.textContent = armed
-    ? `Now click where "${armed.replace("btn-", "button ")}" sits on the diagram`
+    ? `Now click where ${armed.replace("btn-", "button ")} sits ${where}`
     : "Press a button on the device to place it";
 }
 
@@ -206,6 +222,21 @@ function init(): void {
     ui.intro.classList.add("hidden");
     return;
   }
+  ui.mapImage.addEventListener("click", () => {
+    void pickImage().then((picked) => {
+      if (!picked || !layout) return;
+      if (!saveImage(layout.deviceKey, picked.dataUrl)) {
+        showError("Photo too large to store — try a smaller image.");
+        return;
+      }
+      panels.blueprint.setBackdrop(picked);
+    });
+  });
+  ui.mapImageClear.addEventListener("click", () => {
+    if (!layout) return;
+    clearImage(layout.deviceKey);
+    panels.blueprint.setBackdrop(null);
+  });
   ui.mapEdit.addEventListener("click", () => setMapping(!mapping));
   ui.mapExport.addEventListener("click", () => {
     if (layout) downloadLayout(layout);

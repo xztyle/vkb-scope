@@ -47,12 +47,17 @@ trigger — a physically accurate picture cannot be derived from the protocol.
 
 ### Mapping your device (once)
 
-**Map buttons** turns the schematic into your actual device:
+No manufacturer publishes usable schematics of these controllers, so the
+picture has to come from you — which also means this works for any device ever
+made, not just ones somebody drew.
 
-1. Click **Map buttons**
-2. **Press a button on the device** — it arms, and the hint tells you which
-3. **Click where it sits** on the diagram
-4. Repeat for the buttons you care about, then click **Done mapping**
+1. **Load device photo** — a photo of your controller, or the vendor's product
+   render. It's downscaled and stored in your browser, and becomes the backdrop
+   the buttons sit on.
+2. Click **Map buttons**
+3. **Press a button on the device** — it arms, and the hint tells you which
+4. **Click where it sits** on the photo
+5. Repeat for the buttons you care about, then click **Done mapping**
 
 Your layout saves to the browser immediately, so it's there next time.
 
@@ -65,7 +70,8 @@ Layouts resolve in this order:
 3. the default grid
 
 So a layout only has to be drawn once, by one person, for everyone with that
-device to benefit. To contribute yours: **Export layout**, then add the JSON to
+device to benefit. Exported layouts contain positions only — no image — so they
+stay small and carry no licensing baggage from a vendor photo. To contribute yours: **Export layout**, then add the JSON to
 [`src/layouts/index.ts`](src/layouts/index.ts) keyed by `vvvv:pppp` and open a
 pull request.
 

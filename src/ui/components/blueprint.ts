@@ -43,6 +43,8 @@ export class Blueprint {
   /** Button awaiting placement — set by pressing it on the device. */
   private armed: string | null = null;
   private canvas = { width: 900, height: 600 };
+  /** Owner-supplied picture of the device; buttons are mapped onto it. */
+  private backdrop: { dataUrl: string; width: number; height: number } | null = null;
   private root: SVGSVGElement | null = null;
   private gauges = new Map<string, GaugeParts>();
   private crosshair: SVGGElement | null = null;
@@ -61,6 +63,24 @@ export class Blueprint {
     this.paintAxes(report.axes);
     this.paintButtons(report);
     if (this.editing) this.armFromPress(report);
+  }
+
+  /**
+   * With a backdrop the schematic becomes a picture of the actual device and
+   * buttons are placed on it; without one it stays an abstract grid. No vendor
+   * publishes usable schematics, so the picture has to come from the owner.
+   */
+  setBackdrop(image: { dataUrl: string; width: number; height: number } | null): void {
+    this.backdrop = image;
+    this.built = false; // geometry changes entirely
+    this.host.replaceChildren();
+    this.nodes.clear();
+    this.homes.clear();
+    this.gauges.clear();
+  }
+
+  hasBackdrop(): boolean {
+    return this.backdrop !== null;
   }
 
   setLayout(layout: DeviceLayout | null): void {
@@ -119,12 +139,14 @@ export class Blueprint {
     this.nodes.clear();
     this.homes.clear();
     this.armed = null;
+    this.backdrop = null;
     this.crosshair = null;
     this.xyIds = null;
     this.host.replaceChildren();
   }
 
   private build(report: SessionReport): void {
+    if (this.backdrop) return this.buildWithBackdrop(report);
     const axes = report.axes;
     const hasGate = axes.length >= 2;
     this.xyIds = hasGate ? [axes[0]!.axisId, axes[1]!.axisId] : null;
@@ -157,6 +179,76 @@ export class Blueprint {
     this.built = true;
     this.placeNodes();
     this.root.classList.toggle("bp--editing", this.editing);
+  }
+
+  /**
+   * Device view: the owner's picture fills the canvas, buttons sit on top where
+   * they were mapped, and axes run as a compact strip underneath.
+   */
+  private buildWithBackdrop(report: SessionReport): void {
+    const image = this.backdrop!;
+    const width = 900;
+    const imageHeight = Math.round((image.height / image.width) * width);
+    const stripTop = imageHeight + 24;
+    const height = stripTop + report.axes.length * 26 + 20;
+
+    const svg = svgEl("svg", {
+      viewBox: `0 0 ${width} ${height}`,
+      class: "bp",
+      role: "img",
+      "aria-label": "Device diagram with mapped controls",
+    });
+    svg.append(this.defs(), this.grid(width, height));
+    svg.append(
+      svgEl("image", {
+        href: image.dataUrl,
+        x: 0,
+        y: 0,
+        width,
+        height: imageHeight,
+        preserveAspectRatio: "xMidYMid meet",
+      }),
+    );
+
+    // Buttons default to a strip along the bottom of the picture until mapped.
+    const g = svgEl("g");
+    report.buttons.forEach((button, i) => {
+      const cx = 20 + (i % 32) * 27;
+      const cy = imageHeight - 16 - Math.floor(i / 32) * 26;
+      const node = svgEl("circle", { cx, cy, r: 9, class: "bp__node" });
+      const title = svgEl("title");
+      title.textContent = `Button ${button.number}`;
+      node.append(title);
+      this.nodes.set(button.buttonId, node);
+      this.homes.set(button.buttonId, { x: cx, y: cy });
+      g.append(node);
+    });
+    svg.append(g);
+
+    report.axes.forEach((axis, i) => svg.append(this.miniGauge(axis, stripTop + i * 26)));
+
+    svg.addEventListener("click", (event) => this.handleCanvasClick(event));
+    this.host.replaceChildren(svg);
+    this.root = svg;
+    this.canvas = { width, height };
+    this.built = true;
+    this.placeNodes();
+    this.root.classList.toggle("bp--editing", this.editing);
+  }
+
+  private miniGauge(axis: AxisHealth, y: number): SVGGElement {
+    const g = svgEl("g");
+    const x = 90;
+    const w = 680;
+    const h = 10;
+    g.append(this.label(10, y + h, axis.label));
+    const frame = svgEl("rect", { x, y, width: w, height: h, rx: 3, class: "bp__frame" });
+    const fill = svgEl("rect", { x, y, width: 0, height: h, rx: 3, class: "bp__fill" });
+    const marker = svgEl("line", { x1: x, y1: y - 3, x2: x, y2: y + h + 3, class: "bp__marker" });
+    const readout = svgEl("text", { x: x + w + 10, y: y + h, class: "bp__readout" });
+    g.append(frame, fill, marker, readout);
+    this.gauges.set(axis.axisId, { fill, marker, readout, frame });
+    return g;
   }
 
   private defs(): SVGDefsElement {
