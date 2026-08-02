@@ -8,14 +8,27 @@
  */
 
 export const THRESHOLDS = {
-  /** Movement below this is treated as the axis sitting still. */
-  restMovement: 0.004,
-  /** How long an axis must sit still before we start judging its noise. */
+  /**
+   * How wide the "sitting still" window is. The axis counts as at rest while
+   * every sample stays inside a band this size; the moment it leaves, a new
+   * window starts from the current value.
+   *
+   * This is deliberately a *band*, not a per-sample delta. Judging rest from
+   * the delta alone means a slow sweep — where each step is tiny — reads as
+   * one long rest period spanning the whole travel, reporting drift of ~100%.
+   */
+  restWindow: 0.02,
+  /** How long the axis must stay inside that window before we judge its noise. */
   restAfterMs: 400,
   /** Noise band while at rest above this is reported as drift. */
   driftBand: 0.006,
-  /** A single-sample jump larger than this is a spike. */
-  spikeDelta: 0.15,
+  /**
+   * A spike is an out-and-back outlier: the value jumps by more than this and
+   * immediately reverses. Requiring the reversal is what separates a glitch
+   * from fast movement — at typical report rates a quick sweep legitimately
+   * covers a lot of travel between two samples, and that is not a fault.
+   */
+  spikeDelta: 0.2,
   /** Two edges closer together than this look like contact bounce. */
   chatterMs: 25,
 } as const;
@@ -64,6 +77,7 @@ export class AxisMonitor {
   private minSeen = Number.POSITIVE_INFINITY;
   private maxSeen = Number.NEGATIVE_INFINITY;
   private last: number | null = null;
+  private prev: number | null = null;
   private stillSince: number | null = null;
   private restMin = Number.POSITIVE_INFINITY;
   private restMax = Number.NEGATIVE_INFINITY;
@@ -82,33 +96,53 @@ export class AxisMonitor {
     if (value < this.minSeen) this.minSeen = value;
     if (value > this.maxSeen) this.maxSeen = value;
 
-    if (this.last !== null) {
-      const delta = Math.abs(value - this.last);
-      if (delta > THRESHOLDS.spikeDelta) this.spikeCount += 1;
+    this.trackSpike(value);
+    this.trackRest(value, at);
 
-      if (delta <= THRESHOLDS.restMovement) {
-        if (this.stillSince === null) {
-          this.stillSince = at;
-          this.restMin = value;
-          this.restMax = value;
-        } else {
-          if (value < this.restMin) this.restMin = value;
-          if (value > this.restMax) this.restMax = value;
-          if (at - this.stillSince >= THRESHOLDS.restAfterMs) {
-            const band = this.restMax - this.restMin;
-            if (band > this.restBandPeak) this.restBandPeak = band;
-            this.restValueSum += value;
-            this.restValueCount += 1;
-          }
-        }
-      } else {
-        // Movement — start a fresh rest window next time it settles.
-        this.stillSince = null;
-        this.restMin = Number.POSITIVE_INFINITY;
-        this.restMax = Number.NEGATIVE_INFINITY;
-      }
-    }
+    this.prev = this.last;
     this.last = value;
+  }
+
+  /**
+   * A glitch shows up as an out-and-back: the value leaps away and the very
+   * next sample leaps back. Sustained movement in one direction, however fast,
+   * is the user moving the axis.
+   */
+  private trackSpike(value: number): void {
+    if (this.last === null || this.prev === null) return;
+    const inbound = this.last - this.prev;
+    const outbound = value - this.last;
+    const reversed = Math.sign(inbound) !== Math.sign(outbound);
+    if (
+      reversed &&
+      Math.abs(inbound) > THRESHOLDS.spikeDelta &&
+      Math.abs(outbound) > THRESHOLDS.spikeDelta
+    ) {
+      this.spikeCount += 1;
+    }
+  }
+
+  private trackRest(value: number, at: number): void {
+    const min = Math.min(this.restMin, value);
+    const max = Math.max(this.restMax, value);
+
+    if (this.stillSince === null || max - min > THRESHOLDS.restWindow) {
+      // Either first sample, or the axis left the window — it is moving, so
+      // start a fresh window anchored at where it is now.
+      this.stillSince = at;
+      this.restMin = value;
+      this.restMax = value;
+      return;
+    }
+
+    this.restMin = min;
+    this.restMax = max;
+    if (at - this.stillSince < THRESHOLDS.restAfterMs) return;
+
+    const band = max - min;
+    if (band > this.restBandPeak) this.restBandPeak = band;
+    this.restValueSum += value;
+    this.restValueCount += 1;
   }
 
   health(): AxisHealth {
@@ -155,6 +189,7 @@ export class AxisMonitor {
     this.minSeen = Number.POSITIVE_INFINITY;
     this.maxSeen = Number.NEGATIVE_INFINITY;
     this.last = null;
+    this.prev = null;
     this.stillSince = null;
     this.restMin = Number.POSITIVE_INFINITY;
     this.restMax = Number.NEGATIVE_INFINITY;
