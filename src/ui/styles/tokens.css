@@ -1,0 +1,84 @@
+/* Design tokens. Nothing else in the app hardcodes a colour or a size step. */
+
+:root {
+  color-scheme: dark light;
+
+  /* Palette — dark is the default; light values live in the media query below. */
+  --bg: #080b11;
+  --bg-elevated: #10151f;
+  --surface: #141a26;
+  --surface-hover: #1a2130;
+  --border: #232c3d;
+  --border-strong: #32405a;
+
+  --text: #e8edf6;
+  --text-muted: #93a1b8;
+  --text-faint: #64718a;
+
+  --accent: #5eead4;
+  --accent-dim: #2dd4bf;
+  --accent-glow: rgba(94, 234, 212, 0.25);
+
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --ok-glow: rgba(74, 222, 128, 0.2);
+  --warn-glow: rgba(251, 191, 36, 0.22);
+  --bad-glow: rgba(248, 113, 113, 0.25);
+
+  /* Spacing scale */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+  --font: ui-sans-serif, system-ui, "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+
+  --speed: 120ms;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f6fa;
+    --bg-elevated: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #eef1f7;
+    --border: #dbe1ec;
+    --border-strong: #c2ccdd;
+
+    --text: #121822;
+    --text-muted: #566076;
+    --text-faint: #8590a6;
+
+    --accent: #0d9488;
+    --accent-dim: #0f766e;
+    --accent-glow: rgba(13, 148, 136, 0.18);
+
+    --ok: #16a34a;
+    --warn: #b45309;
+    --bad: #dc2626;
+    --ok-glow: rgba(22, 163, 74, 0.14);
+    --warn-glow: rgba(180, 83, 9, 0.14);
+    --bad-glow: rgba(220, 38, 38, 0.14);
+
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08);
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --speed: 0ms;
+  }
+}

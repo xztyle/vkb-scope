@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VKB Scope — flight controller diagnostics</title>
+    <meta
+      name="description"
+      content="Read-only, browser-based diagnostics for VKB flight controllers. Live button and axis monitoring with drift and chatter detection."
+    />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">VS</div>
+          <div>
+            <div class="brand__name">VKB Scope</div>
+            <div class="brand__tag">read-only controller diagnostics</div>
+          </div>
+        </div>
+        <button id="reset" class="btn hidden-when-idle">Reset stats</button>
+        <button id="disconnect" class="btn hidden-when-idle">Disconnect</button>
+      </header>
+
+      <!-- Browser can't do WebHID at all -->
+      <section id="unsupported" class="notice notice--blocking hidden">
+        <h2>This browser can't talk to USB devices</h2>
+        <p>
+          VKB Scope uses <strong>WebHID</strong>, which Firefox and Safari don't implement.
+          Open this page in a Chromium-based browser — Chrome, Chromium, Edge, Brave or
+          Vivaldi — and it'll work.
+        </p>
+        <p>
+          On Linux you may also need permission to read the device. For VKB gear, create
+          <code>/etc/udev/rules.d/99-vkb.rules</code> containing
+          <code>KERNEL=="hidraw*", ATTRS{idVendor}=="231d", MODE="0660", TAG+="uaccess"</code>
+          then run <code>sudo udevadm control --reload-rules &amp;&amp; sudo udevadm trigger</code>.
+        </p>
+      </section>
+
+      <!-- Idle state -->
+      <section id="intro" class="notice">
+        <h2>Connect a controller</h2>
+        <p>
+          Everything here is <strong>read-only</strong> — VKB Scope watches the reports your
+          device already sends and never writes to it, so it cannot change your configuration
+          or firmware.
+        </p>
+        <p>
+          Press every button and sweep every axis through its full range. Drift, contact
+          chatter and dead inputs show up as you go.
+        </p>
+        <div class="stats" style="margin-top: var(--sp-4)">
+          <button id="connect" class="btn btn--primary">Connect VKB device</button>
+          <button id="connect-any" class="btn">Any HID controller</button>
+        </div>
+        <p id="error" class="badge badge--bad hidden" style="margin-top: var(--sp-4)"></p>
+      </section>
+
+      <!-- Live state -->
+      <main id="dashboard" class="hidden">
+        <div class="card" style="margin-bottom: var(--sp-4)">
+          <div class="section-title">
+            <span id="device-name">Device</span>
+            <span id="device-meta" class="section-title__count"></span>
+          </div>
+          <div id="stats" class="stats"></div>
+        </div>
+
+        <div class="grid grid--split">
+          <section class="card">
+            <h2 class="section-title">Axes</h2>
+            <div id="axes"></div>
+          </section>
+
+          <section class="card">
+            <h2 class="section-title">Hat switches</h2>
+            <div id="hats" class="hats"></div>
+          </section>
+        </div>
+
+        <section class="card" style="margin-top: var(--sp-4)">
+          <h2 class="section-title">Buttons</h2>
+          <div id="buttons" class="buttons"></div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Read-only diagnostics — never writes to your device.</span>
+        <a href="https://github.com/xztyle/vkb-scope">Source on GitHub</a>
+        <span>Not affiliated with VKB-Sim.</span>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

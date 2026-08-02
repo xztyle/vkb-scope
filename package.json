@@ -1,0 +1,21 @@
+{
+  "name": "vkb-scope",
+  "version": "0.1.0",
+  "description": "Read-only, browser-based diagnostics for VKB flight controllers. Live button and axis monitoring, drift and jitter detection.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xztyle/vkb-scope.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  }
+}
