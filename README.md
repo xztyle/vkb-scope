@@ -41,12 +41,37 @@ button grid, hat dials, and health notes.
 **Blueprint** — a schematic of the inputs: an XY gate for the first two axes,
 gauges for the rest, and buttons as numbered nodes, all live.
 
-The blueprint is deliberately a schematic of *what the device reports*, not a
-drawing of the device. A HID report descriptor says "128 buttons"; it never says
-which one is the pinky trigger, so a physically accurate picture cannot be
-derived from the protocol. Per-device layouts would have to be authored by hand
-by someone holding the hardware — a good contribution if you'd like to add one
-for yours.
+The blueprint starts as a schematic of *what the device reports*, because a HID
+report descriptor says "128 buttons" and never says which one is the pinky
+trigger — a physically accurate picture cannot be derived from the protocol.
+
+### Mapping your device (once)
+
+**Map buttons** turns the schematic into your actual device:
+
+1. Click **Map buttons**
+2. **Press a button on the device** — it arms, and the hint tells you which
+3. **Click where it sits** on the diagram
+4. Repeat for the buttons you care about, then click **Done mapping**
+
+Your layout saves to the browser immediately, so it's there next time.
+
+### Sharing it, so nobody else has to
+
+Layouts resolve in this order:
+
+1. **your own**, from browser storage — your edits always win
+2. **a built-in layout** shipped with the app for that VID:PID
+3. the default grid
+
+So a layout only has to be drawn once, by one person, for everyone with that
+device to benefit. To contribute yours: **Export layout**, then add the JSON to
+[`src/layouts/index.ts`](src/layouts/index.ts) keyed by `vvvv:pppp` and open a
+pull request.
+
+`src/layouts` ships empty on purpose — the entries should be real exports from
+real hardware, not positions guessed from product photos, which would be worse
+than the honest generic grid.
 
 ## Browser support
 

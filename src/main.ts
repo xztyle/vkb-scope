@@ -10,6 +10,20 @@
 import { MonitoringSession } from "./application/session.js";
 import { isVkb } from "./domain/device.js";
 import {
+  deviceKey,
+  emptyLayout,
+  withPoint,
+  type DeviceLayout,
+} from "./domain/layout.js";
+import {
+  clearLayout,
+  downloadLayout,
+  loadLayout,
+  pickLayoutFile,
+  saveLayout,
+} from "./infrastructure/layout-store.js";
+import { builtInLayout } from "./layouts/index.js";
+import {
   isSupported,
   reconnectFirstGranted,
   requestDevice,
@@ -42,6 +56,11 @@ const ui = {
   blueprintView: byId("blueprint-view"),
   viewPanels: byId<HTMLButtonElement>("view-panels"),
   viewBlueprint: byId<HTMLButtonElement>("view-blueprint"),
+  mapEdit: byId<HTMLButtonElement>("map-edit"),
+  mapExport: byId<HTMLButtonElement>("map-export"),
+  mapImport: byId<HTMLButtonElement>("map-import"),
+  mapClear: byId<HTMLButtonElement>("map-clear"),
+  mapHint: byId("map-hint"),
 };
 
 const panels = {
@@ -54,6 +73,8 @@ const panels = {
 
 type View = "panels" | "blueprint";
 let view: View = "panels";
+let layout: DeviceLayout | null = null;
+let mapping = false;
 let connection: ConnectedDevice | null = null;
 let session: MonitoringSession | null = null;
 let frame = 0;
@@ -78,6 +99,7 @@ function paint(): void {
       panels.hats.update(report.hats);
     } else {
       panels.blueprint.update(report);
+      updateMapHint();
     }
   }
   frame = requestAnimationFrame(paint);
@@ -106,10 +128,35 @@ function start(device: ConnectedDevice): void {
     .join(" · ");
 
   panels.blueprint.reset();
+  const key = deviceKey(info.vendorId, info.productId);
+  // Your own edits win; otherwise a layout shipped with the app for this
+  // device; otherwise the generic grid.
+  layout = loadLayout(key) ?? builtInLayout(key) ?? emptyLayout(key, info.productName);
+  panels.blueprint.setLayout(layout);
+  setMapping(false);
   ui.intro.classList.add("hidden");
   applyView();
   clearError();
   if (frame === 0) frame = requestAnimationFrame(paint);
+}
+
+function updateMapHint(): void {
+  if (!mapping) {
+    ui.mapHint.textContent = "";
+    return;
+  }
+  const armed = panels.blueprint.armedButton();
+  ui.mapHint.textContent = armed
+    ? `Now click where "${armed.replace("btn-", "button ")}" sits on the diagram`
+    : "Press a button on the device to place it";
+}
+
+function setMapping(next: boolean): void {
+  mapping = next;
+  panels.blueprint.setEditing(next);
+  ui.mapEdit.setAttribute("aria-pressed", String(next));
+  ui.mapEdit.textContent = next ? "Done mapping" : "Map buttons";
+  updateMapHint();
 }
 
 function applyView(): void {
@@ -159,6 +206,30 @@ function init(): void {
     ui.intro.classList.add("hidden");
     return;
   }
+  ui.mapEdit.addEventListener("click", () => setMapping(!mapping));
+  ui.mapExport.addEventListener("click", () => {
+    if (layout) downloadLayout(layout);
+  });
+  ui.mapImport.addEventListener("click", () => {
+    void pickLayoutFile().then((imported) => {
+      if (!imported) return;
+      layout = imported;
+      saveLayout(imported);
+      panels.blueprint.setLayout(imported);
+    });
+  });
+  ui.mapClear.addEventListener("click", () => {
+    if (!layout) return;
+    clearLayout(layout.deviceKey);
+    layout = emptyLayout(layout.deviceKey, layout.deviceName);
+    panels.blueprint.setLayout(layout);
+  });
+  panels.blueprint.onPlace = (buttonId, point) => {
+    if (!layout) return;
+    layout = withPoint(layout, buttonId, point);
+    saveLayout(layout);
+    panels.blueprint.setLayout(layout);
+  };
   ui.viewPanels.addEventListener("click", () => setView("panels"));
   ui.viewBlueprint.addEventListener("click", () => setView("blueprint"));
   ui.connect.addEventListener("click", () => void connect(true));

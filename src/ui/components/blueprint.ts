@@ -13,6 +13,7 @@
 
 import type { SessionReport } from "../../application/session.js";
 import type { AxisHealth } from "../../domain/diagnostics.js";
+import type { DeviceLayout, LayoutPoint } from "../../domain/layout.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -35,11 +36,20 @@ interface GaugeParts {
 /** Live schematic of everything the device reports. */
 export class Blueprint {
   private readonly host: HTMLElement;
+  /** Called when the user places a button; the app persists the result. */
+  onPlace: ((buttonId: string, point: LayoutPoint) => void) | null = null;
+  private layout: DeviceLayout | null = null;
+  private editing = false;
+  /** Button awaiting placement — set by pressing it on the device. */
+  private armed: string | null = null;
+  private canvas = { width: 900, height: 600 };
   private root: SVGSVGElement | null = null;
   private gauges = new Map<string, GaugeParts>();
   private crosshair: SVGGElement | null = null;
   private xyIds: [string, string] | null = null;
   private nodes = new Map<string, SVGElement>();
+  /** Default grid slot per button, used until one is mapped. */
+  private homes = new Map<string, { x: number; y: number }>();
   private built = false;
 
   constructor(host: HTMLElement) {
@@ -50,6 +60,56 @@ export class Blueprint {
     if (!this.built) this.build(report);
     this.paintAxes(report.axes);
     this.paintButtons(report);
+    if (this.editing) this.armFromPress(report);
+  }
+
+  setLayout(layout: DeviceLayout | null): void {
+    this.layout = layout;
+    if (this.built) this.placeNodes();
+  }
+
+  setEditing(editing: boolean): void {
+    this.editing = editing;
+    this.armed = null;
+    this.root?.classList.toggle("bp--editing", editing);
+    this.updateArmedHighlight();
+  }
+
+  /** Which button is waiting to be placed, for the UI to prompt with. */
+  armedButton(): string | null {
+    return this.armed;
+  }
+
+  /**
+   * In edit mode, physically pressing a button arms it for placement. That is
+   * the whole point: only the person holding the device knows where it is.
+   */
+  private armFromPress(report: SessionReport): void {
+    const pressed = report.buttons.find((b) => b.pressed);
+    if (pressed && pressed.buttonId !== this.armed) {
+      this.armed = pressed.buttonId;
+      this.updateArmedHighlight();
+    }
+  }
+
+  private updateArmedHighlight(): void {
+    for (const [id, node] of this.nodes) {
+      node.setAttribute("data-armed", String(this.editing && id === this.armed));
+    }
+  }
+
+  /** Apply saved positions, falling back to the default grid slot. */
+  private placeNodes(): void {
+    for (const [id, node] of this.nodes) {
+      const point = this.layout?.points[id];
+      const home = this.homes.get(id);
+      const cx = point ? point.x * this.canvas.width : home?.x;
+      const cy = point ? point.y * this.canvas.height : home?.y;
+      if (cx === undefined || cy === undefined) continue;
+      node.setAttribute("cx", String(cx));
+      node.setAttribute("cy", String(cy));
+      node.setAttribute("data-mapped", String(Boolean(point)));
+    }
   }
 
   /** Rebuild from scratch — used when a different device connects. */
@@ -57,6 +117,8 @@ export class Blueprint {
     this.built = false;
     this.gauges.clear();
     this.nodes.clear();
+    this.homes.clear();
+    this.armed = null;
     this.crosshair = null;
     this.xyIds = null;
     this.host.replaceChildren();
@@ -88,9 +150,13 @@ export class Blueprint {
     gaugeAxes.forEach((axis, i) => svg.append(this.gauge(axis, gateBottom + i * 46)));
     svg.append(this.buttonField(report, gaugesBottom));
 
+    svg.addEventListener("click", (event) => this.handleCanvasClick(event));
     this.host.replaceChildren(svg);
     this.root = svg;
+    this.canvas = { width, height };
     this.built = true;
+    this.placeNodes();
+    this.root.classList.toggle("bp--editing", this.editing);
   }
 
   private defs(): SVGDefsElement {
@@ -172,9 +238,24 @@ export class Blueprint {
       node.append(svgEl("title", {}));
       node.querySelector("title")!.textContent = `Button ${button.number}`;
       this.nodes.set(button.buttonId, node);
+      this.homes.set(button.buttonId, { x: cx, y: cy });
       g.append(node);
     });
     return g;
+  }
+
+  /** Clicking the canvas in edit mode drops the armed button at that point. */
+  private handleCanvasClick(event: MouseEvent): void {
+    if (!this.editing || !this.armed || !this.root) return;
+    const rect = this.root.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const point: LayoutPoint = {
+      x: (event.clientX - rect.left) / rect.width,
+      y: (event.clientY - rect.top) / rect.height,
+    };
+    this.onPlace?.(this.armed, point);
+    this.armed = null;
+    this.updateArmedHighlight();
   }
 
   private label(x: number, y: number, text: string): SVGTextElement {

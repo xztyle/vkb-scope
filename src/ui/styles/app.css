@@ -565,3 +565,42 @@ body {
 
 .bp__node[data-severity="warn"] { stroke: var(--warn); }
 .bp__node[data-severity="bad"]  { stroke: var(--bad); }
+
+.maptools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.maptools .btn {
+  font-size: 0.82rem;
+  padding: var(--sp-1) var(--sp-3);
+}
+
+.maptools .btn[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: transparent;
+  color: #05221d;
+}
+
+.maphint {
+  font-size: 0.82rem;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.bp--editing { cursor: crosshair; }
+
+.bp--editing .bp__node { cursor: crosshair; }
+
+/* The button waiting to be placed. */
+.bp__node[data-armed="true"] {
+  fill: var(--warn);
+  stroke: var(--warn);
+  filter: drop-shadow(0 0 10px var(--warn-glow));
+}
+
+/* Unmapped buttons sit on the default grid; mapped ones are placed. */
+.bp__node[data-mapped="false"] { opacity: 0.55; }
