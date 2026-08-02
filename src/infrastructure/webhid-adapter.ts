@@ -36,10 +36,14 @@ async function attach(device: HIDDevice): Promise<ConnectedDevice> {
   const handlers: SnapshotHandler[] = [];
 
   const listener = (event: HIDInputReportEvent): void => {
-    // Match the layout by report id; devices with a single unnumbered report
-    // arrive as id 0.
-    const layout =
-      info.layouts.find((l) => l.reportId === event.reportId) ?? info.layouts[0];
+    // Match strictly by report id. Devices commonly send several input reports
+    // and only one of them carries controls — VKB gear interleaves ids 8/11/12
+    // alongside the joystick report. Falling back to "the first layout" here
+    // decodes those unrelated reports as if they were the joystick one, which
+    // looks exactly like a device spraying garbage. Unknown ids are skipped.
+    // (Devices with a single unnumbered report arrive as id 0, which the
+    // parser also records as 0, so they still match.)
+    const layout = info.layouts.find((l) => l.reportId === event.reportId);
     if (!layout) return;
     const snapshot = decodeReport(layout, event.data, performance.now());
     for (const handler of handlers) handler(snapshot);
